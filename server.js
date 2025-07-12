@@ -67,10 +67,10 @@ wss.on('connection', async ws => {
     if (data.action === 'start' && !processes[region]) {
       const ffmpegProcess = spawn('ffmpeg', [
         '-loglevel', 'verbose',
-        '-i', `srt://0.0.0.0:${inputPort}?mode=listener&timeout=3600000&linger=1`,
+        '-i', `srt://0.0.0.0:${inputPort}?mode=listener&timeout=7200000&linger=1`,
         '-c', 'copy',
         '-f', 'mpegts',
-        `srt://0.0.0.0:${outputPort}?mode=listener`
+        `srt://0.0.0.0:${outputPort}?mode=listener&timeout=7200000&linger=1`
       ]);
 
       processes[region] = ffmpegProcess;
