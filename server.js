@@ -2,6 +2,7 @@ const express = require('express');
 const { spawn } = require('child_process');
 const WebSocket = require('ws');
 const os = require('os');
+const https = require('https');
 
 const app = express();
 const port = 3333;
@@ -26,16 +27,17 @@ const server = app.listen(port, () => {
 
 const wss = new WebSocket.Server({ server });
 
-function getLocalIp() {
-  const interfaces = os.networkInterfaces();
-  for (const name of Object.keys(interfaces)) {
-    for (const iface of interfaces[name]) {
-      if (iface.family === 'IPv4' && !iface.internal) {
-        return iface.address;
-      }
-    }
-  }
-  return '127.0.0.1';
+function getLocalIp(callback) {
+  return new Promise((resolve, reject) => {
+    https.get('https://api.ipify.org', (res) => {
+      let ip = '';
+      res.on('data', chunk => ip += chunk);
+      res.on('end', () => resolve(ip.trim()));
+    }).on('error', (err) => {
+      console.error('Gagal mendapatkan IP publik:', err);
+      resolve('127.0.0.1');
+    });
+  });
 }
 
 // Data stream
@@ -49,8 +51,8 @@ const streamConfigs = {
 
 const processes = {};
 
-wss.on('connection', ws => {
-  const ip = getLocalIp();
+wss.on('connection', async ws => {
+  const ip = await getLocalIp();
   ws.send(JSON.stringify({ type: 'ip', ip }));
 
   ws.on('message', msg => {
@@ -65,7 +67,7 @@ wss.on('connection', ws => {
     if (data.action === 'start' && !processes[region]) {
       const ffmpegProcess = spawn('ffmpeg', [
         '-loglevel', 'verbose',
-        '-i', `srt://0.0.0.0:${inputPort}?mode=listener`,
+        '-i', `srt://0.0.0.0:${inputPort}?mode=listener&timeout=3600000&linger=1`,
         '-c', 'copy',
         '-f', 'mpegts',
         `srt://0.0.0.0:${outputPort}?mode=listener`
